@@ -1,0 +1,10 @@
+name: masknmf_devel
+channels:
+    - main
+    - pytorch
+    - conda-forge
+dependencies: 
+    - detectron2
+    - pytorch>=1.7
+    - torchvision
+    - opencv
