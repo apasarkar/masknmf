@@ -3,8 +3,10 @@ channels:
     - main
     - pytorch
     - conda-forge
-dependencies: 
-    - detectron2
-    - pytorch>=1.7
+dependencies:
+    - pytorch
     - torchvision
     - opencv
+    - pip
+    - pip:
+        - git+https://github.com/facebookresearch/detectron2.git
