@@ -1,12 +1,17 @@
 name: masknmf_devel
 channels:
-    - main
     - pytorch
-    - conda-forge
+    - defaults
+    - menpo
 dependencies:
     - pytorch
     - torchvision
-    - opencv
+    - cudatoolkit=10.2
+    - mkl-devel
+    - numpy
+    - matplotlib
+    - opencv3
+    - jupyterlab
     - pip
     - pip:
         - git+https://github.com/facebookresearch/detectron2.git
