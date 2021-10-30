@@ -9,9 +9,12 @@ dependencies:
     - cudatoolkit=10.2
     - mkl-devel
     - numpy
+    - scipy
     - matplotlib
     - opencv3
     - jupyterlab
     - pip
     - pip:
         - git+https://github.com/facebookresearch/detectron2.git
+        - git+https://github.com/j-friedrich/OASIS.git@f3ae85e1225bfa4bfe098a3f119246ac1e4f8481#egg=oasis
+
