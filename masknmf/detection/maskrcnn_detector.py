@@ -11,7 +11,7 @@ from masknmf.utils.image_transform import scale_to_RGB
 
 class maskrcnn_detector():
     
-    def __init__(self, net_path, config_path, confidence_level, allowed_overlap, order = "F"):
+    def __init__(self, net_path, config_path, confidence_level, allowed_overlap, cpu_only = False, order = "F"):
         '''
         Init function constructs the mask-rcnn network for object detection
         Params:
@@ -19,7 +19,7 @@ class maskrcnn_detector():
             comfig_path: string. describes the filepath of neural network config.yaml file
             confidence_level: float between 0 and 1. the minimum confidence level for any segmentation provided by mask-rcnn. If an estimate below this confidence level, it is not considered. 
         '''
-        self.predictor = self._initialize_predictor(net_path, config_path, confidence_level)
+        self.predictor = self._initialize_predictor(net_path, config_path, confidence_level, cpu_only=cpu_only)
         self.allowed_overlap = allowed_overlap
         self.order = order
     
@@ -49,12 +49,14 @@ class maskrcnn_detector():
             masks_cropped = masks_sparse
         return masks_cropped
         
-    def _initialize_predictor(self, net_path, config_path, confidence_level):
+    def _initialize_predictor(self, net_path, config_path, confidence_level, cpu_only=False):
         
         cfg = get_cfg()
         cfg.merge_from_file(config_path)
         cfg.MODEL.WEIGHTS = os.path.join(net_path) 
         cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = confidence_level 
+        if cpu_only:
+            cfg.MODEL.DEVICE='cpu'
         predictor = DefaultPredictor(cfg)
         return predictor
     
