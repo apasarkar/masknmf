@@ -1,0 +1,1 @@
+conda-build . --override-channels -c pytorch -c defaults --variant-config-file conda_build_config.yaml

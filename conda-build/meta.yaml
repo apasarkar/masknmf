@@ -1,0 +1,28 @@
+package:
+  name: masknmf
+  version: "0.0.1"
+  
+source:
+    path: ../
+    
+
+requirements:
+    build:
+        - git
+        - {{ compiler('c') }}
+        - {{ compiler('cxx') }}
+    host: 
+        - pip
+        - Cython
+        - python >=3.6
+        - pytorch 
+        - torchvision
+        - cudatoolkit {{ cuda }}
+    run:
+        - python >=3.6
+        - {{ pin_compatible('torchvision', min_pin='x.x', max_pin='x.x') }}
+        - {{ pin_compatible('pytorch', min_pin='x.x', max_pin='x.x') }}
+        - {{ pin_compatible('cudatoolkit', min_pin='x.x', max_pin='x.x') }}
+        - numpy
+        - scipy
+        - opencv
