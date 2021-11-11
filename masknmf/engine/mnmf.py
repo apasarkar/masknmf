@@ -1,11 +1,6 @@
 import time
 import os
-import matplotlib.pyplot as plt
 import numpy as np
-# from skimage import io
-# import skimage
-# from skimage import measure
-# from skimage import filters
 import random
 import math
 import scipy
@@ -16,24 +11,12 @@ import multiprocessing
 
 
 from math import ceil
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-import matplotlib.gridspec as gridspec
-from matplotlib.colorbar import Colorbar
-# from skimage.measure import find_contours
 import subprocess
 
 from oasis.oasis_methods import oasisAR1, oasisAR2
 from oasis.functions import gen_data, gen_sinusoidal_data, deconvolve, estimate_parameters
 from oasis.plotting import simpleaxis
 
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
-import matplotlib as mpl
-import colorsys
-from matplotlib import patches,  lines
-from matplotlib.patches import Polygon
-import IPython.display
-import shutil
 
 import torch
 
