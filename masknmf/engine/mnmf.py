@@ -15,7 +15,6 @@ import subprocess
 
 from oasis.oasis_methods import oasisAR1, oasisAR2
 from oasis.functions import gen_data, gen_sinusoidal_data, deconvolve, estimate_parameters
-from oasis.plotting import simpleaxis
 
 
 import torch
