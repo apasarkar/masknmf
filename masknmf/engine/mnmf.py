@@ -123,8 +123,6 @@ def segment_local_UV(U, X, dims, obj_detector, frame_num, plot_mnmf = True, bloc
     frame_num: The number of "brightest" frames we will observe over each region
     confidence: The threshold for accepting mask-rcnn components
     plot_mnmf: (boolean) Indicates whether we plot output as it is generated
-    allowed_overlap: The maximum allowed overlap between components identified by mask-rcnn
-                in the same frame
     block_size: dims b1 x b2. The size of the block we use to partition the FOV. Over each block, we find the brightest frames, etc. 
     """
 
@@ -329,7 +327,7 @@ def filter_components_UV(masks, bin_masks, properties, mask_thres, bin_mask_thre
 
     
 def bessel_init_local_UV(U_sparse, V, dims, block_dims, frame_len, spatial_thres, model, \
-                        plot_mnmf = True, allowed_overlap = 5, device = 'cuda', batch_size = 10000, order="F"):
+                        plot_mnmf = True, device = 'cuda', batch_size = 10000, order="F"):
     
     '''
     Low-rank, memory efficient implementation of masknmf detection algorithm
