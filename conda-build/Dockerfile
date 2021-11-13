@@ -1,4 +1,4 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
@@ -17,10 +17,8 @@ ENV CONDA_PREFIX=/opt/conda
 ENV PATH=$CONDA_PREFIX/bin:$PATH
 
 RUN git -C ~/ clone https://github.com/apasarkar/masknmf.git \
-    && conda install conda-build 
-#     && cd ~/masknmf \
-#      && /opt/conda/bin/conda env update -n root -f environments/deploy.yml \
-#     && /opt/conda/bin/conda clean -fya
+    && /opt/conda/bin/conda install conda-build \
+    && chmod +x ~/masknmf/conda-build/conda-build.sh
 
 WORKDIR /root/masknmf/conda-build
 
