@@ -1,9 +1,9 @@
-import scipy.sparse
-import numpy as np
 import torch
+import numpy as np
+import scipy.sparse
 import math
 import scipy
-
+import time
 import functools
 import multiprocessing
 import os
@@ -33,6 +33,28 @@ def dim_1_matmul(A, B, device = 'cuda', batch_size = 10000):
     '''
     GPU-accelerated matmul of A x B and B x C matrix. Use this method when B is extremely large but A x C can fit on GPU
     '''
+    if device == 'cpu':
+        print("dim1matmul cpu")
+        print("NEW NP DOT")
+        print("the shape of A is {}".format(A.shape))
+        print("the shape of B is {}".format(B.shape))
+        print("the type of A is {}".format(A.dtype))
+        print("the type of B is {}".format(B.dtype))
+        val = len(os.sched_getaffinity(os.getpid()))
+        print("the number of usable CPUs is {}".format(val))
+        print("the num mkl threads is {}".format(os.environ['MKL_NUM_THREADS']))
+#         print(os.environ)
+        A_t = torch.from_numpy(A)
+        B_t = torch.from_numpy(B)
+        start_time = time.time()
+        #with torch.no_grad():
+        torch.set_num_threads(24)
+        prod = torch.matmul(A_t, B_t)
+        end_time = time.time() - start_time
+        print("the matmul itself took {}".format(end_time))
+        return prod.numpy()
+        #return np.dot(A, B)
+    
     accumulator = np.zeros((A.shape[0], B.shape[1]))
     
     batch_values = math.ceil((A.shape[1]/batch_size))
@@ -58,6 +80,9 @@ def runpar(f, X, nprocesses=None, **kwargs):
     #Change affinity (if needed) to enable full multicore processing
     
     
+    val = len(os.sched_getaffinity(os.getpid()))
+    print("the CPU affinity BEFORE runpar is {}".format(val))
+
     if nprocesses is None:
         nprocesses = int(multiprocessing.cpu_count()) 
         print("the number of processes is {}".format(nprocesses))
@@ -68,6 +93,15 @@ def runpar(f, X, nprocesses=None, **kwargs):
         res = pool.map(functools.partial(f, **kwargs), X)
     pool.join()
     pool.close()
+
+
+    val = len(os.sched_getaffinity(os.getpid()))
+    print("after the multicore, the affinity is {}".format(val))
+
+    num_cpu = multiprocessing.cpu_count()
+    os.system('taskset -cp 0-%d %s' % (num_cpu, os.getpid()))
+    val = len(os.sched_getaffinity(os.getpid()))
+    print("the cpu affinity after the process (intro fix) is {}".format(val))
     return res
 
 def parinit():

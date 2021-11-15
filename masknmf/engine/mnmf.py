@@ -1,6 +1,6 @@
+import numpy as np
 import time
 import os
-import numpy as np
 import random
 import math
 import scipy
@@ -105,9 +105,13 @@ def get_factorized_projection(U_sparse, V, batch_size = 10000, device = 'cuda'):
         deconv_mov = np.array(runpar(deconv_trace, mov_portion)).astype("double");
         print("deconv finished at {}".format(time.time() - start_time))
         
-       
+        val = len(os.sched_getaffinity(os.getpid()))
+        print('the number of usable cpu cores is {}'.format(val))
+        
+        #deconv_mov = mov_portion
         accumulator += dim_1_matmul(left_factor[:, range_start:range_end], deconv_mov, device = device,\
                                    batch_size = batch_size)
+        print("the dim_1_matmul finished at {}".format(time.time() - start_time))
         print("iter {} done at {}".format(i, time.time() - start_time))
         
     return accumulator
@@ -175,14 +179,18 @@ def segment_local_UV(U, X, dims, obj_detector, frame_num, plot_mnmf = True, bloc
         else:
             bright_dict[curr_frame_indexed] = [(x_indices[k], y_indices[k])]
     
+    print("identifying bright regions took {}".format(time.time() - mask_time))
     print("bright regions identified. starting segmentation")
 
+    print("now populating valid positions")
+    val_pos_time = time.time()
     
     outputs = scipy.sparse.csc_matrix((x*y, 0))
     total_footprints = scipy.sparse.csc_matrix((x*y, 0))
     frame_numbers = []
     
     for key in bright_dict:
+        dict_time = time.time()
         tuple_list = bright_dict[key]
         frame_val = int(key)
         
@@ -216,8 +224,10 @@ def segment_local_UV(U, X, dims, obj_detector, frame_num, plot_mnmf = True, bloc
         total_footprints = scipy.sparse.hstack([total_footprints, footprints])
         for k in range(masks.shape[1]):
             frame_numbers.append(frame_val)
+        
+        print("one iteration out of {} iterations took {}".format(len(list(bright_dict.keys())),time.time() - dict_time))
      
-    
+    print("the detection step overall took {}".format(time.time() - val_pos_time))
     ##Create a properties matrix: 
     property_count = 0
     properties = np.zeros((x,y))
