@@ -189,10 +189,21 @@ def segment_local_UV(U, X, dims, obj_detector, frame_num, plot_mnmf = True, bloc
     total_footprints = scipy.sparse.csc_matrix((x*y, 0))
     frame_numbers = []
     
-    for key in bright_dict:
+    frame_examine_list = [key for key in bright_dict]
+    batch_step = 50
+    
+    for key_ind in range(len(frame_examine_list)):
+        if key_ind % batch_step == 0:
+            #Run detectron on this next set of frames in batch: 
+            frame_range = range(key_ind, min(len(frame_examine_list), key_ind + batch_step))
+            frame_sublist = [int(frame_examine_list[i]) for i in frame_range]
+            frame_to_examine = U.dot(X[:, frame_sublist ])
+            detect_input = frame_to_examine.reshape((x,y, -1), order = order)
+            masks_list = obj_detector.detect_instances(detect_input)
+            
         dict_time = time.time()
-        tuple_list = bright_dict[key]
-        frame_val = int(key)
+        tuple_list = bright_dict[frame_examine_list[key_ind]]
+        frame_val = int(frame_examine_list[key_ind])
         
         #Now we populate a frame of "valid positions":
         valid_positions = np.zeros((x,y))
@@ -202,28 +213,44 @@ def segment_local_UV(U, X, dims, obj_detector, frame_num, plot_mnmf = True, bloc
             y_range = (block_size[1] * curr_tuple[1], block_size[1] * (curr_tuple[1] + 1))
             valid_positions[x_range[0]:x_range[1], y_range[0]:y_range[1]] = 1
         
-        curr_frame = U.dot(X[:, [frame_val]])
-        detect_input = (curr_frame).reshape((x,y), order=order)
-        masks = obj_detector.detect_instances(detect_input)
+        print("validating positions occurred at {}".format(time.time() - dict_time))
+        
+        
+#         curr_frame = U.dot(X[:, [frame_val]])
+        curr_frame = frame_to_examine[:, [(key_ind % batch_step)]]
+        print("U dot X finish at {}".format(time.time() - dict_time))
+#         detect_input = (curr_frame).reshape((x,y), order=order)
+        print("curr frame reshape finish at {}".format(time.time() - dict_time))
+#         masks = obj_detector.detect_instances(detect_input)
+        masks = masks_list[(key_ind % batch_step)]
+        print("detect instnaces finish at {}".format(time.time() - dict_time))
         footprints = masks.tocsr().multiply(curr_frame)
         footprints = footprints.tocsc()
+        print("footprints calculation finish at {}".format(time.time() - dict_time))
         
+
         
         #Ignore components which are not in the bright regions
-        valid_masks_indicator = masks.multiply(valid_positions.reshape((-1, 1))).tocsc()
+        valid_masks_indicator = masks.multiply(valid_positions.reshape((-1, 1), order=order)).tocsc()
         valid_masks_sum = valid_masks_indicator.sum(0)
         valid_masks_sum = np.asarray(valid_masks_sum)
         valid_masks_keep = (valid_masks_sum > 0).astype('bool')
         masks = masks[:, np.squeeze(valid_masks_keep)]
         footprints = footprints[:, np.squeeze(valid_masks_keep)]
         
+        print("reject components not in bright region finished at {}".format(time.time() - dict_time))
+        
         # print("the shape of outputs originally was {}".format(outputs.shape))
         # print("the shape of masks currently is {}".format(masks.shape))
         outputs = scipy.sparse.hstack([outputs, masks])
         # print("after appending masks hstack, the shape is {}".format(outputs.shape))
         total_footprints = scipy.sparse.hstack([total_footprints, footprints])
+        
+        print("hstack finish at {}".format(time.time() - dict_time))
+        
         for k in range(masks.shape[1]):
             frame_numbers.append(frame_val)
+        
         
         print("one iteration out of {} iterations took {}".format(len(list(bright_dict.keys())),time.time() - dict_time))
      
