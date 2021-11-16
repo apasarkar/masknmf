@@ -22,7 +22,7 @@ from masknmf.engine.segmentation import segment_local_UV, filter_components_UV
 
     
 def bessel_init_local_UV(U_sparse, V, dims, block_dims, frame_len, spatial_thres, model, \
-                        plot_mnmf = True, device = 'cuda', batch_size = 10000, order="F"):
+                        plot_mnmf = True, batch_size = 10000, order="F"):
     
     '''
     Low-rank, memory efficient implementation of masknmf detection algorithm
@@ -34,7 +34,7 @@ def bessel_init_local_UV(U_sparse, V, dims, block_dims, frame_len, spatial_thres
         frame_len: integer
     
     '''    
-    X = get_factorized_projection(U_sparse, V, batch_size = batch_size, device = device)
+    X = get_factorized_projection(U_sparse, V, batch_size = batch_size)
     
     
     bin_masks, footprints, properties, frame_numbers = segment_local_UV(U_sparse, X, dims, model, frame_len, plot_mnmf = plot_mnmf,\
