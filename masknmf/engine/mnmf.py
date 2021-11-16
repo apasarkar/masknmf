@@ -44,37 +44,16 @@ def get_projection_factorized_multiplier(U_sparse):
     Assumed U is a sparse coo matrix here
     Calculates ((U^t U)^-1)U^t
     '''
-    print("get_projection_factorized multiplier")
-    start_time = time.time()
-    
-    print("transpose found at {}".format(time.time() - start_time))
 
-
-    print("finding value 1")
     value1 = U_sparse.T.tocsr()
-    print("finding value 1 done at {}".format(time.time() - start_time))
-    
-    print("finding value 2")
     value2 = U_sparse.tocsr()
-   
-    print("{} us the fraction of all values of U are nonzero here".format(value2.count_nonzero()/ (value2.shape[0] * value2.shape[1])))
-    print("finding value 2 done at {}".format(time.time() - start_time))
     
-    print("finding prod now")
     prod = (value1 * value2).toarray()
-    print("finding prod which is value1 * value2 done at {}".format(time.time() - start_time))
-    
-    print("prod found at {}".format(time.time() - start_time))
+
     prod = np.linalg.inv(prod)
-    print("the shape of prod after np linalg is {}".format(prod.shape))
-    print("the type of prod after np linalg is {}".format(type(prod)))
-    print("inverse found at {}".format(time.time() - start_time))
     final_prod_t = U_sparse.tocsr().dot(prod.T)
-    print("final_prod_ found at {}".format(time.time() - start_time))
     final_prod = final_prod_t.T  
-    print("final_prod found at {}".format(time.time() - start_time))
     
-    print("get_projection_factorized_multiplier took {}".format(time.time() - start_time))
     return final_prod
 
 
@@ -86,33 +65,20 @@ def deconv_trace(trace):
 def get_factorized_projection(U_sparse, V, batch_size = 10000, device = 'cuda'):
     start_time = time.time()
     left_factor = get_projection_factorized_multiplier(U_sparse).astype("double")
-    print("left factor found at {}".format(time.time() - start_time))
-    print("the type of left facor is {}".format(left_factor.dtype))
     num_pixels = U_sparse.shape[0]
     
     accumulator = np.zeros_like(V)
     
     num_iters = math.ceil(U_sparse.shape[0]/batch_size)
     U_sparse = U_sparse.tocsr()
-    print("entering for loop at time {}".format(time.time() - start_time))
     for i in range(num_iters):
         range_start = batch_size*(i)
         range_end = range_start + batch_size
         
         mov_portion = U_sparse[range_start:range_end, :].dot(V)
-        print("the type of mov_portion is {}".format(type(mov_portion)))
-        print("the shape of mov_portion is {}".format(mov_portion.shape))
         deconv_mov = np.array(runpar(deconv_trace, mov_portion)).astype("double");
-        print("deconv finished at {}".format(time.time() - start_time))
-        
-        val = len(os.sched_getaffinity(os.getpid()))
-        print('the number of usable cpu cores is {}'.format(val))
-        
-        #deconv_mov = mov_portion
-        accumulator += dim_1_matmul(left_factor[:, range_start:range_end], deconv_mov, device = device,\
-                                   batch_size = batch_size)
-        print("the dim_1_matmul finished at {}".format(time.time() - start_time))
-        print("iter {} done at {}".format(i, time.time() - start_time))
+
+        accumulator += left_factor[:, range_start:range_end].dot(deconv_mov)
         
     return accumulator
 
