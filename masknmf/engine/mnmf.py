@@ -24,7 +24,7 @@ import torch
 #Repo-specific imports
 from masknmf.utils.computational_utils import l2_normalize
 from masknmf.utils.computational_utils import dim_1_matmul
-from masknmf.utils.computational_utils import runpar
+from masknmf.utils.multiprocess_utils import runpar
 
 
 
