@@ -13,8 +13,6 @@ import multiprocessing
 from math import ceil
 import subprocess
 
-from oasis.oasis_methods import oasisAR1, oasisAR2
-from oasis.functions import gen_data, gen_sinusoidal_data, deconvolve, estimate_parameters
 
 
 import torch
@@ -23,13 +21,7 @@ import torch
 
 #Repo-specific imports
 from masknmf.utils.computational_utils import l2_normalize
-from masknmf.utils.computational_utils import dim_1_matmul
-from masknmf.utils.multiprocess_utils import runpar
-
-
-
-   
-    
+from masknmf.engine.sparsify import get_factorized_projection
 
 
 
@@ -39,48 +31,6 @@ from masknmf.utils.multiprocess_utils import runpar
 ####
 #############
 
-def get_projection_factorized_multiplier(U_sparse):
-    '''
-    Assumed U is a sparse coo matrix here
-    Calculates ((U^t U)^-1)U^t
-    '''
-
-    value1 = U_sparse.T.tocsr()
-    value2 = U_sparse.tocsr()
-    
-    prod = (value1 * value2).toarray()
-
-    prod = np.linalg.inv(prod)
-    final_prod_t = U_sparse.tocsr().dot(prod.T)
-    final_prod = final_prod_t.T  
-    
-    return final_prod
-
-
-def deconv_trace(trace):
-    _, s, _, _, _ = deconvolve(trace, penalty=1);
-    return s
-
-
-def get_factorized_projection(U_sparse, V, batch_size = 10000, device = 'cuda'):
-    start_time = time.time()
-    left_factor = get_projection_factorized_multiplier(U_sparse).astype("double")
-    num_pixels = U_sparse.shape[0]
-    
-    accumulator = np.zeros_like(V)
-    
-    num_iters = math.ceil(U_sparse.shape[0]/batch_size)
-    U_sparse = U_sparse.tocsr()
-    for i in range(num_iters):
-        range_start = batch_size*(i)
-        range_end = range_start + batch_size
-        
-        mov_portion = U_sparse[range_start:range_end, :].dot(V)
-        deconv_mov = np.array(runpar(deconv_trace, mov_portion)).astype("double");
-
-        accumulator += left_factor[:, range_start:range_end].dot(deconv_mov)
-        
-    return accumulator
 
     
 def segment_local_UV(U, X, dims, obj_detector, frame_num, plot_mnmf = True, block_size = (16,16), order="F"):
