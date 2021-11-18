@@ -9,7 +9,7 @@ import scipy.sparse
 
 from masknmf.utils.computational_utils import l2_normalize
     
-def segment_local_UV(U, X, dims, obj_detector, frame_num, plot_mnmf = True, block_size = (16,16), order="F"):
+def segment_local_UV(U, R, X, dims, obj_detector, frame_num, plot_mnmf = True, block_size = (16,16), order="F"):
     """
     Segments neurons using mask_model
     U: scipy.sparse.coo matrix, dimensions (d x R)
@@ -48,8 +48,7 @@ def segment_local_UV(U, X, dims, obj_detector, frame_num, plot_mnmf = True, bloc
             
             index_values = ref_mat_r[x_range[0]:x_range[1], y_range[0]:y_range[1]].flatten()
             curr_U = U[index_values, :]
-            curr_vid = curr_U.dot(X)
-
+            curr_vid = (curr_U.dot(R)).dot(X)
             brightness = np.amax(curr_vid, axis = 0)
             reorder = np.argsort(brightness)[::-1]
             max_values = reorder[:frame_num]
@@ -89,7 +88,10 @@ def segment_local_UV(U, X, dims, obj_detector, frame_num, plot_mnmf = True, bloc
             #Run detectron on this next set of frames in batch: 
             frame_range = range(key_ind, min(len(frame_examine_list), key_ind + batch_step))
             frame_sublist = [int(frame_examine_list[i]) for i in frame_range]
-            frame_to_examine = U.dot(X[:, frame_sublist ])
+            
+            RX_curr = R.dot(X[:, frame_sublist])
+            frame_to_examine = U.dot(RX_curr)
+#             frame_to_examine = U.dot(X[:, frame_sublist ])
             detect_input = frame_to_examine.reshape((x,y, -1), order = order)
             masks_list = obj_detector.detect_instances(detect_input)
             

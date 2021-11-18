@@ -33,9 +33,9 @@ def deconv_trace(trace):
     return s
 
 
-def get_factorized_projection(U_sparse, V, batch_size = 10000, device = 'cuda'):
+def get_factorized_projection(U_sparse, R, V, batch_size = 10000, device = 'cuda'):
+    
     start_time = time.time()
-    left_factor = get_projection_factorized_multiplier(U_sparse).astype("double")
     num_pixels = U_sparse.shape[0]
     
     accumulator = np.zeros_like(V)
@@ -46,10 +46,14 @@ def get_factorized_projection(U_sparse, V, batch_size = 10000, device = 'cuda'):
         range_start = batch_size*(i)
         range_end = range_start + batch_size
         
-        mov_portion = U_sparse[range_start:range_end, :].dot(V)
+        UR_crop = U_sparse[range_start:range_end, :].dot(R)
+        mov_portion = UR_crop.dot(V)
         deconv_mov = np.array(runpar(deconv_trace, mov_portion)).astype("double");
 
-        accumulator += left_factor[:, range_start:range_end].dot(deconv_mov)
+        
+#         UtX = (UR_crop.T).dot(deconv_mov)
+        accumulator += (UR_crop.T).dot(deconv_mov)
+#         accumulator += left_factor[:, range_start:range_end].dot(deconv_mov)
         
     return accumulator
 

@@ -21,23 +21,23 @@ from masknmf.engine.segmentation import segment_local_UV, filter_components_UV
 
 
     
-def bessel_init_local_UV(U_sparse, V, dims, block_dims, frame_len, spatial_thres, model, \
+def bessel_init_local_UV(U_sparse, R, V, dims, block_dims, frame_len, spatial_thres, model, \
                         plot_mnmf = True, batch_size = 10000, order="F"):
     
     '''
     Low-rank, memory efficient implementation of masknmf detection algorithm
     Params:
         U: scipy.sparse.coo_matrix: dimensions (d, R) where d is the number of pixels in the movie
+        
         V: np.ndarray (2d): R x T Compressed Temporal Matrix from PMD
-        block_dims: 2-element tuple
-            The block size used in PMD denoising. Elements must be divisible by 4
+        block_dims: We partition the FOV into dimensions equal to block_dims when we want to find 'bright' components of the movie.
         frame_len: integer
     
     '''    
-    X = get_factorized_projection(U_sparse, V, batch_size = batch_size)
+    X = get_factorized_projection(U_sparse, R, V, batch_size = batch_size)
     
     
-    bin_masks, footprints, properties, frame_numbers = segment_local_UV(U_sparse, X, dims, model, frame_len, plot_mnmf = plot_mnmf,\
+    bin_masks, footprints, properties, frame_numbers = segment_local_UV(U_sparse, R, X, dims, model, frame_len, plot_mnmf = plot_mnmf,\
                             block_size = block_dims, order=order)
     
     
