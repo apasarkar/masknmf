@@ -189,6 +189,7 @@ def filter_components_UV(masks, bin_masks, properties, mask_thres, bin_mask_thre
     
     mask_dims, num_masks = masks.shape
     
+    
     ##Normalize masks data structure
     masks = l2_normalize(masks)
     bin_masks = l2_normalize(bin_masks)
@@ -221,7 +222,11 @@ def filter_components_UV(masks, bin_masks, properties, mask_thres, bin_mask_thre
                 max_similarity = product.max()
                 if max_similarity > mask_thres:
                     found_real_match_mask = True
-                
+                    break
+                    
+        if found_real_match_mask:
+            continue
+        
         
         ##Step 2: Check if it is highly similar to currently accepted bin masks
         found_bin_match_mask = False
@@ -235,7 +240,7 @@ def filter_components_UV(masks, bin_masks, properties, mask_thres, bin_mask_thre
                 if max_similarity > bin_mask_thres:
                     found_bin_mask_match = True
     
-        if found_real_match_mask or found_bin_match_mask:
+        if found_bin_match_mask:
             continue
         else:
             keep_masks[mask_index] = 1
@@ -251,5 +256,6 @@ def filter_components_UV(masks, bin_masks, properties, mask_thres, bin_mask_thre
                     accepted_bin_masks = bin_masks_dict[property_val]
                     bin_masks_dict[property_val] = scipy.sparse.hstack([accepted_bin_masks, curr_bin_mask])
     
+    print("we started with {} masks and kept {} masks".format(keep_masks.shape, np.count_nonzero(keep_masks)))
     return keep_masks
     
