@@ -1,5 +1,5 @@
-import numpy as np
 import torch
+import numpy as np
 import scipy.sparse
 from masknmf.detection.detector import ObjectDetector
 import os
@@ -9,16 +9,11 @@ from detectron2.engine import DefaultPredictor
 from detectron2.config import get_cfg
 from detectron2.modeling import build_model
 from detectron2.checkpoint import DetectionCheckpointer
-from detectron2.export.flatten import TracingAdapter
-from detectron2.export.flatten import flatten_to_tuple
-# from TracingAdapter import flatten_to_tuple
+
 
 from masknmf.utils.image_transform import scale_to_RGB
 import time
 
-def inference_func(model, image):
-    inputs = [{"image": image}]
-    return model.inference(inputs, do_postprocess=False)[0]
 
 class maskrcnn_detector():
     
@@ -61,6 +56,7 @@ class maskrcnn_detector():
 
             else:
                 masks_sparse_list_prune.append(masks_sparse)
+        
         return masks_sparse_list_prune
         
     def _initialize_predictor_old(self, net_path, config_path, confidence_level, cpu_only=False):
@@ -86,55 +82,7 @@ class maskrcnn_detector():
         
         model.eval()
         
-        return model
-
-#     def _get_masks_from_frame_batch(self, frames):
-#         '''
-#         Input: np.ndarray, dimensions (d1,d2, fr) where 'fr' is number frames
-        
-#         Output: List of masks in scipy.sparse.csc format (d1*d2, K) where K is number of masks
-        
-#         '''
-#         img_list = []
-#         print("starting to add all elements to data structure")
-#         start_time = time.time()
-#         for k in range(frames.shape[2]):
-#             frame_RGB = scale_to_RGB(frames[:, :, k])
-#             frame_RGB = np.transpose(frame_RGB,(2,0,1))
-#             img_tensor = torch.from_numpy(frame_RGB).float()
-            
-#             img_list.append({"image": img_tensor})
-            
-#         print("elements added at time {}".format(time.time() - start_time))
-        
-#         print("running batch process inference")
-#         start_time = time.time()
-#         with torch.no_grad():
-#             torch.set_num_threads(multiprocessing.cpu_count())
-#             outputs = self.predictor(img_list)
-#         print("batch process took {}".format(time.time() - start_time))
-        
-#         sparse_out = scipy.sparse.csc_matrix((frames.shape[0]*frames.shape[1], 0))
-        
-#         for k in range(frames.shape[2]):
-#             instance_values = outputs[k]['instances']
-#             if len(instance_values) > 0:
-#                 pred_masks = instance_values.pred_masks
-#                 values = pred_masks.cpu().detach().numpy().transpose(1,2,0)
-#                 values_r = values.reshape((np.prod(values.shape[:2]),-1), order=self.order)
-#                 values_sparse = scipy.sparse.csr_matrix(values_r).tocsc()
-
-#                 #Get rid of components which overlap significantly
-#                 prod_mat = values_sparse.T.dot(values_sparse)
-#                 prod_mat.setdiag(0)
-#                 max_vals = prod_mat.max(0).toarray()
-#                 keep_elts = np.squeeze(max_vals < self.allowed_overlap)
-
-#                 print("the time taken to filter the overlapping inputs is {}".format(time.time() - masks_time))
-
-#                 sparse_out = scipy.sparse.hstack([sparse_out, values_sparse[:, keep_elts]])
-#         return sparse_out
-            
+        return model            
 
     
     def _get_masks_from_frame(self, frame):
@@ -144,18 +92,14 @@ class maskrcnn_detector():
         Outputs: 
             List of masks in scipy.sparse.csc format (d1*d2, K) where K is number of masks
         '''
-        masks_time = time.time()
         img_list = []
         for k in range(frame.shape[2]):
             
             frame_RGB = scale_to_RGB(frame[:, :, k])
             frame_RGB = np.transpose(frame_RGB,(2,0,1))
-            img_tensor = torch.from_numpy(frame_RGB).float()
-            val = len(os.sched_getaffinity(os.getpid()))
+            img_tensor = torch.from_numpy(frame_RGB)
             img_list.append({"image":img_tensor})
 
-        
-        masks_time = time.time()
         
         masks_time = time.time()
         with torch.no_grad():
@@ -185,56 +129,5 @@ class maskrcnn_detector():
             else:
                 outputs_sparse.append(scipy.sparse.csc_matrix((frame.shape[0]*frame.shape[1], 0)))
         
-    
+
         return outputs_sparse
-    
-    
-    
-    def _get_masks_from_frame_single(self, frame):
-        '''
-        
-        Outputs: 
-            List of masks in scipy.sparse.csc format (d1*d2, K) where K is number of masks
-        '''
-        masks_time = time.time()
-        frame_RGB = scale_to_RGB(frame)
-#         print("scale to RGB finished at point {}".format(time.time() - masks_time))
-        frame_RGB = np.transpose(frame_RGB,(2,0,1))
-#         print("transpose finished at point {}".format(time.time() - masks_time))
-        img_tensor = torch.from_numpy(frame_RGB).float()
-#         print("numpy to torch cast finished at {}".format(time.time() - masks_time))
-        val = len(os.sched_getaffinity(os.getpid()))
-#         print("before any mod, the os affinity is {}".format(val))
-
-        img_list = [{"image":img_tensor}]
-#         print("the time taken to scale to RGB + cast is {}".format(time.time() - masks_time))
-        
-        masks_time = time.time()
-        
-        masks_time = time.time()
-        with torch.no_grad():
-            torch.set_num_threads(multiprocessing.cpu_count())
-            outputs = self.predictor(img_list)
-        print("the time taken to run maskrcnn on 100 is {}".format(time.time() - masks_time))
-        
-        masks_time = time.time()
-        instance_values = outputs[0]['instances']
-        if len(instance_values) > 0:
-            pred_masks = instance_values.pred_masks
-            values = pred_masks.cpu().detach().numpy().transpose(1,2,0)
-            values_r = values.reshape((np.prod(values.shape[:2]),-1), order=self.order)
-            values_sparse = scipy.sparse.csr_matrix(values_r).tocsc()
-
-            #Get rid of components which overlap significantly
-            prod_mat = values_sparse.T.dot(values_sparse)
-            prod_mat.setdiag(0)
-            max_vals = prod_mat.max(0).toarray()
-            keep_elts = np.squeeze(max_vals < self.allowed_overlap)
-            
-#             print("the time taken to filter the overlapping inputs is {}".format(time.time() - masks_time))
-        
-            return values_sparse[:, keep_elts]
-        
-        else:
-            return scipy.sparse.csc_matrix((frame.shape[0]*frame.shape[1], 0))
-        

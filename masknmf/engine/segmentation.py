@@ -91,7 +91,6 @@ def segment_local_UV(U, R, X, dims, obj_detector, frame_num, plot_mnmf = True, b
             
             RX_curr = R.dot(X[:, frame_sublist])
             frame_to_examine = U.dot(RX_curr)
-#             frame_to_examine = U.dot(X[:, frame_sublist ])
             detect_input = frame_to_examine.reshape((x,y, -1), order = order)
             masks_list = obj_detector.detect_instances(detect_input)
             
@@ -107,20 +106,12 @@ def segment_local_UV(U, R, X, dims, obj_detector, frame_num, plot_mnmf = True, b
             y_range = (block_size[1] * curr_tuple[1], block_size[1] * (curr_tuple[1] + 1))
             valid_positions[x_range[0]:x_range[1], y_range[0]:y_range[1]] = 1
         
-        print("validating positions occurred at {}".format(time.time() - dict_time))
         
-        
-#         curr_frame = U.dot(X[:, [frame_val]])
+
         curr_frame = frame_to_examine[:, [(key_ind % batch_step)]]
-        print("U dot X finish at {}".format(time.time() - dict_time))
-#         detect_input = (curr_frame).reshape((x,y), order=order)
-        print("curr frame reshape finish at {}".format(time.time() - dict_time))
-#         masks = obj_detector.detect_instances(detect_input)
         masks = masks_list[(key_ind % batch_step)]
-        print("detect instnaces finish at {}".format(time.time() - dict_time))
         footprints = masks.tocsr().multiply(curr_frame)
         footprints = footprints.tocsc()
-        print("footprints calculation finish at {}".format(time.time() - dict_time))
         
 
         
@@ -132,7 +123,7 @@ def segment_local_UV(U, R, X, dims, obj_detector, frame_num, plot_mnmf = True, b
         masks = masks[:, np.squeeze(valid_masks_keep)]
         footprints = footprints[:, np.squeeze(valid_masks_keep)]
         
-        print("reject components not in bright region finished at {}".format(time.time() - dict_time))
+#         print("reject components not in bright region finished at {}".format(time.time() - dict_time))
         
         # print("the shape of outputs originally was {}".format(outputs.shape))
         # print("the shape of masks currently is {}".format(masks.shape))
@@ -140,13 +131,13 @@ def segment_local_UV(U, R, X, dims, obj_detector, frame_num, plot_mnmf = True, b
         # print("after appending masks hstack, the shape is {}".format(outputs.shape))
         total_footprints = scipy.sparse.hstack([total_footprints, footprints])
         
-        print("hstack finish at {}".format(time.time() - dict_time))
+#         print("hstack finish at {}".format(time.time() - dict_time))
         
         for k in range(masks.shape[1]):
             frame_numbers.append(frame_val)
         
         
-        print("one iteration out of {} iterations took {}".format(len(list(bright_dict.keys())),time.time() - dict_time))
+#         print("one iteration out of {} iterations took {}".format(len(list(bright_dict.keys())),time.time() - dict_time))
      
     print("the detection step overall took {}".format(time.time() - val_pos_time))
     ##Create a properties matrix: 
