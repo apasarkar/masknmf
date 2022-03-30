@@ -30,6 +30,7 @@ def get_projection_factorized_multiplier(U_sparse):
 
 def deconv_trace(trace):
     _, s, _, _, _ = deconvolve(trace, penalty=1);
+    s[np.isnan(s)] = 0
     return s
 
 
