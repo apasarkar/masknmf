@@ -8,6 +8,37 @@ import math
 import scipy.sparse
 
 from masknmf.utils.computational_utils import l2_normalize
+
+
+def get_ordering_cuda(U, R, X, x, y, z, block_size, frame_num=20):
+    iters1 = math.ceil(x / block_size[0])
+    iters2 = math.ceil(y / block_size[1])
+
+    ref_mat = np.arange(x*y)
+    ref_mat_r = ref_mat.reshape((x,y),order='C')
+    frame_array = torch.zeros((iters1, iters2, frame_num), device='cuda')
+
+    UR = torch.from_numpy(U.tocsr().dot(R)).cuda()
+    X_cuda = torch.from_numpy(X).cuda()
+    ref_mat_torch = torch.from_numpy(ref_mat_r).cuda()
+    frame_array = torch.zeros((iters1, iters2, frame_num), device='cuda')
+
+
+    for k in range(iters1):
+        for j in range(iters2):
+            x_range = torch.tensor([block_size[0] * k, block_size[0] * (k+1)], device='cuda')
+            y_range = torch.tensor([block_size[1] * j, block_size[1] * (j+1)], device='cuda')
+
+            index_values = torch.flatten(ref_mat_torch[x_range[0]:x_range[1], y_range[0]:y_range[1]])
+            UR_crop = UR[index_values, :]
+            prod = torch.matmul(UR_crop, X_cuda)
+            max_values = torch.max(prod, dim=0)[0]
+
+            frame_array[k, j, :] = torch.argsort(max_values, descending=True)[:frame_num]
+
+    return frame_array.detach().cpu().numpy()
+
+
     
 def segment_local_UV(U, R, X, dims, obj_detector, frame_num, plot_mnmf = True, block_size = (16,16), order="F"):
     """
@@ -36,25 +67,7 @@ def segment_local_UV(U, R, X, dims, obj_detector, frame_num, plot_mnmf = True, b
     iters1 = math.ceil(x / block_size[0])
     iters2 = math.ceil(y / block_size[1])
     
-    ref_mat = np.arange(x*y)
-    ref_mat_r = ref_mat.reshape((x,y),order=order)
-    frame_array = np.zeros((iters1, iters2, frame_num))
-    U = U.tocsr()
-
-    for k in range(iters1):
-        for j in range(iters2):
-            x_range = (block_size[0] * k, block_size[0] * (k+1))
-            y_range = (block_size[1] * j, block_size[1] * (j+1))
-            
-            index_values = ref_mat_r[x_range[0]:x_range[1], y_range[0]:y_range[1]].flatten()
-            curr_U = U[index_values, :]
-            curr_vid = (curr_U.dot(R)).dot(X)
-            brightness = np.amax(curr_vid, axis = 0)
-            reorder = np.argsort(brightness)[::-1]
-            max_values = reorder[:frame_num]
-            
-            frame_array[k, j, :] = max_values.flatten()
-     
+    frame_array = get_ordering_cuda(U, R, X, x, y,z, block_size, frame_num)
     
        
     ## We do not want to visit each frame multiple times. 
