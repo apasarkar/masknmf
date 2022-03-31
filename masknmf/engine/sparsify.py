@@ -2,7 +2,7 @@ import numpy as np
 import scipy.sparse
 import time
 import math
-
+from tqdm import tqdm
 from oasis.oasis_methods import oasisAR1, oasisAR2
 from oasis.functions import gen_data, gen_sinusoidal_data, deconvolve, estimate_parameters
 
@@ -30,11 +30,12 @@ def get_projection_factorized_multiplier(U_sparse):
 
 def deconv_trace(trace):
     _, s, _, _, _ = deconvolve(trace, penalty=1);
-    s[np.isnan(s)] = 0
+    np.nan_to_num(s, copy=False, nan=0)
     return s
 
 
-def get_factorized_projection(U_sparse, R, V, batch_size = 10000, device = 'cuda'):
+#This function batches over pixels - better to parallelize over frames since deconvolution is the limiting step here
+def get_factorized_projection_pixels(U_sparse, R, V, batch_size = 10000, device = 'cuda'):
     
     start_time = time.time()
     num_pixels = U_sparse.shape[0]
@@ -57,5 +58,25 @@ def get_factorized_projection(U_sparse, R, V, batch_size = 10000, device = 'cuda
         accumulator += (UR_crop.T).dot(deconv_mov)
         
     return accumulator
+
+#This function batches over frames
+def get_factorized_projection(U_sparse, R, V, batch_size = 1000, device = 'cuda'):
+    
+    num_iters = math.ceil(V.shape[1]/batch_size)
+    print("the value of V shape is {}".format(V.shape))
+    print("the value of batch size is {}".format(batch_size))
+    UR = U_sparse.tocsr().dot(R)
+    X = np.zeros_like(V)
+    for i in tqdm(range(num_iters)):
+        range_start = batch_size*(i)
+        range_end = range_start + batch_size
+        
+        mov_portion = UR.dot(V[:, range_start:range_end])
+        
+        orig_type = mov_portion.dtype
+        deconv_mov = np.array(runpar(deconv_trace, mov_portion.astype("float64"))).astype(orig_type);
+
+        X[:, range_start:range_end] = (UR.T).dot(deconv_mov)
+    return X
 
     
