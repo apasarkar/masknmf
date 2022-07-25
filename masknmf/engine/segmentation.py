@@ -40,7 +40,7 @@ def get_ordering_cuda(U, R, X, x, y, z, block_size, frame_num=20):
 
 
     
-def segment_local_UV(U, R, X, dims, obj_detector, frame_num, plot_mnmf = True, block_size = (16,16), order="F"):
+def segment_local_UV(U, R, X, dims, obj_detector, frame_num, plot_mnmf = True, block_size = (16,16), order="F", batch_step = 50):
     """
     Segments neurons using mask_model
     U: scipy.sparse.coo matrix, dimensions (d x R)
@@ -94,7 +94,7 @@ def segment_local_UV(U, R, X, dims, obj_detector, frame_num, plot_mnmf = True, b
     frame_numbers = []
     
     frame_examine_list = [key for key in bright_dict]
-    batch_step = 50
+    batch_step = batch_step
     
     for key_ind in range(len(frame_examine_list)):
         if key_ind % batch_step == 0:
