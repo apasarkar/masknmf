@@ -145,7 +145,7 @@ def get_factorized_projection(U_sparse, R, V, batch_size = 1000, lambda_val = 0.
         mov_portion = UR.dot(V[:, range_start:range_end])
         
         orig_type = mov_portion.dtype
-        output_2 = oasis_deconv_ar1_vmap(mov_portion, lambda_val, gamma_val).astype(orig_type)
+        deconv_mov = oasis_deconv_ar1_vmap(mov_portion, lambda_val, gamma_val).astype(orig_type)
 
         X[:, range_start:range_end] = (UR.T).dot(deconv_mov)
     return X
