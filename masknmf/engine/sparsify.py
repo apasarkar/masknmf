@@ -42,7 +42,7 @@ def deconv_trace(trace):
     np.nan_to_num(s, copy=False, nan=0)
     return s
 
-@partial(jit)
+# @partial(jit)
 def get_c_from_s(s, gamma):
   final_val = jnp.zeros_like(s)
   s_part1 = jax.lax.dynamic_slice(s, (0,), (jnp.size(s)-1,))
@@ -51,30 +51,30 @@ def get_c_from_s(s, gamma):
   return s + gamma*s_part1
 
 
-@partial(jit)
+# @partial(jit)
 def objective_function(s, trace, lambda_val, gamma_val):
   c = get_c_from_s(s, gamma_val)
   norm1 = jnp.linalg.norm(c - trace) ** 2
   sum_val = jnp.sum(s)
   return norm1 + lambda_val*sum_val
 
-@partial(jit)
+# @partial(jit)
 def preprocess_data(trace, thres_val=15):
   trace = trace - jnp.amin(trace)
   trace = trace - jnp.percentile(trace, thres_val)
   trace = jnp.clip(trace, a_min=0, a_max=None)
 
-  return trace
+  return jax.nn.normalize(trace)
 
 
-@partial(jit)
+# @partial(jit)
 def oasis_deconv_ar1(trace, lambda_val, gamma_val):
 
   trace = preprocess_data(trace)
   s_init = jnp.zeros_like(trace) 
   solver = ProjectedGradient(fun=objective_function,
                              projection=projection.projection_non_negative,
-                             tol=1e-6, maxiter=10)
+                             tol=1e-6, maxiter=100)
   fit_val = solver.run(s_init, trace=trace, lambda_val=lambda_val, gamma_val=gamma_val).params
 
   return fit_val
