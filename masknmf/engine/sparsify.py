@@ -80,7 +80,7 @@ def oasis_deconv_ar1(trace, lambda_val, gamma_val):
   return fit_val
 
 
-oasis_deconv_ar1_vmap = jit(vmap(oasis_deconv_ar1, in_axes=(0, None, None)))
+oasis_deconv_ar1_vmap = jit(vmap(oasis_deconv_ar1, in_axes=(0, None, None)), static_argnums=(1,2))
 
 
 
@@ -131,7 +131,7 @@ def get_factorized_projection_multiprocess(U_sparse, R, V, batch_size = 1000, de
 
 
 #This function batches over frames
-def get_factorized_projection(U_sparse, R, V, batch_size = 1000, lambda_val = 0.7, gamma_val = 0.95, device = 'cuda'):
+def get_factorized_projection_old(U_sparse, R, V, batch_size = 1000, lambda_val = 0.7, gamma_val = 0.95, device = 'cuda'):
     
     num_iters = math.ceil(V.shape[1]/batch_size)
     print("the value of V shape is {}".format(V.shape))
@@ -149,6 +149,30 @@ def get_factorized_projection(U_sparse, R, V, batch_size = 1000, lambda_val = 0.
 
         X[:, range_start:range_end] = (UR.T).dot(deconv_mov)
     return X
+
+
+
+#This function batches over frames
+def get_factorized_projection(U_sparse, R, V, batch_size = 1000, frame_upper_bound=10000, lambda_val = 0.7, gamma_val = 0.95):
+    
+    num_iters = math.ceil(U_sparse.shape[0]/batch_size)
+    UR = U_sparse.tocsr().dot(R)
+    X = np.zeros((U_sparse.shape[0],min(frame_upper_bound, V.shape[1])))
+    index_points = list(np.arange(0, U_sparse.shape[0] - batch_size, batch_size))
+    index_points.append(U_sparse.shape[0] - batch_size)
+    for i in tqdm(index_points):
+        range_start = i
+        range_end = min(range_start + batch_size, U_sparse.shape[0])
+        
+        mov_portion = UR[range_start:range_end, :].dot(V[:, :frame_upper_bound])
+        
+        orig_type = mov_portion.dtype
+        deconv_mov = oasis_deconv_ar1_vmap(mov_portion, lambda_val, gamma_val).astype(orig_type)
+
+        X[range_start:range_end, :] = deconv_mov
+    
+    final_prod = (UR.T).dot(X)
+    return final_prod
 
 
 
