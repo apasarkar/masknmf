@@ -64,7 +64,7 @@ def preprocess_data(trace, thres_val=15):
   trace = trace - jnp.percentile(trace, thres_val)
   trace = jnp.clip(trace, a_min=0, a_max=None)
 
-  return jax.nn.normalize(trace)
+  return trace
 
 
 # @partial(jit)
@@ -80,7 +80,9 @@ def oasis_deconv_ar1(trace, lambda_val, gamma_val):
   return fit_val
 
 
-oasis_deconv_ar1_vmap = jit(vmap(oasis_deconv_ar1, in_axes=(0, None, None)), static_argnums=(1,2))
+# oasis_deconv_ar1_vmap = jit(vmap(oasis_deconv_ar1, in_axes=(0, None, None)), static_argnums=(1,2))
+
+oasis_deconv_ar1_vmap = vmap(oasis_deconv_ar1, in_axes=(0, None, None))
 
 
 
@@ -150,7 +152,10 @@ def get_factorized_projection_old(U_sparse, R, V, batch_size = 1000, lambda_val 
         X[:, range_start:range_end] = (UR.T).dot(deconv_mov)
     return X
 
-
+@partial(jit, static_argnums=(2,3))
+def fused_deconvolution_pipeline(UR, V_crop, lambda_val, gamma_val):
+    mov_portion = jnp.matmul(UR, V_crop)
+    return oasis_deconv_ar1_vmap(mov_portion, lambda_val, gamma_val)
 
 #This function batches over frames
 def get_factorized_projection(U_sparse, R, V, batch_size = 1000, frame_upper_bound=10000, lambda_val = 0.7, gamma_val = 0.95):
@@ -160,18 +165,17 @@ def get_factorized_projection(U_sparse, R, V, batch_size = 1000, frame_upper_bou
     X = np.zeros((U_sparse.shape[0],min(frame_upper_bound, V.shape[1])))
     index_points = list(np.arange(0, U_sparse.shape[0] - batch_size, batch_size))
     index_points.append(U_sparse.shape[0] - batch_size)
+    V_temporal_crop = V[:, :frame_upper_bound]
     for i in tqdm(index_points):
         range_start = i
         range_end = min(range_start + batch_size, U_sparse.shape[0])
         
-        mov_portion = UR[range_start:range_end, :].dot(V[:, :frame_upper_bound])
-        
-        orig_type = mov_portion.dtype
-        deconv_mov = oasis_deconv_ar1_vmap(mov_portion, lambda_val, gamma_val).astype(orig_type)
+        deconv_mov = fused_deconvolution_pipeline(UR[range_start:range_end, :], V_temporal_crop, lambda_val, gamma_val)
 
-        X[range_start:range_end, :] = deconv_mov
+        X[range_start:range_end, :] = np.array(deconv_mov).astype(np.float32)
     
-    final_prod = (UR.T).dot(X)
+    UTX = U_sparse.transpose().dot(X)
+    final_prod = R.T.dot(UTX) 
     return final_prod
 
 
