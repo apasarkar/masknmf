@@ -33,8 +33,12 @@ def bessel_init_local_UV(U_sparse, R, V, dims, block_dims, frame_len, spatial_th
         block_dims: We partition the FOV into dimensions equal to block_dims when we want to find 'bright' components of the movie.
         frame_len: integer
     
-    '''    
-    X = get_factorized_projection(U_sparse, R, V, batch_size = batch_size)
+    '''   
+    if torch.cuda.is_available():
+        device = 'cuda'
+    else:
+        device = 'cpu'
+    X = get_factorized_projection(U_sparse, R, V, batch_size = batch_size, device=device)
     
     
     bin_masks, footprints, properties, frame_numbers = segment_local_UV(U_sparse, R, X, dims, model, frame_len, plot_mnmf = plot_mnmf,\

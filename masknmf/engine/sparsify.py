@@ -17,7 +17,8 @@ import jaxopt
 
 from masknmf.utils.multiprocess_utils import runpar
 
-
+import torch
+import torch_sparse
 
 def get_projection_factorized_multiplier(U_sparse):
     '''
@@ -60,7 +61,8 @@ def objective_function(s, trace, lambda_val, gamma_val):
 
 # @partial(jit)
 def preprocess_data(trace, thres_val=15):
-  trace = trace - jnp.amin(trace)
+  # trace = trace - jnp.amin(trace)
+  trace = jnp.clip(trace, a_min=0, a_max=None)
   trace = trace - jnp.percentile(trace, thres_val)
   trace = jnp.clip(trace, a_min=0, a_max=None)
 
@@ -158,7 +160,7 @@ def fused_deconvolution_pipeline(UR, V_crop, lambda_val, gamma_val):
     return oasis_deconv_ar1_vmap(mov_portion, lambda_val, gamma_val)
 
 #This function batches over frames
-def get_factorized_projection(U_sparse, R, V, batch_size = 1000, frame_upper_bound=10000, lambda_val = 0.7, gamma_val = 0.95):
+def get_factorized_projection_jax(U_sparse, R, V, batch_size = 1000, frame_upper_bound=10000, lambda_val = 0.7, gamma_val = 0.95):
     
     num_iters = math.ceil(U_sparse.shape[0]/batch_size)
     UR = U_sparse.tocsr().dot(R)
@@ -178,6 +180,64 @@ def get_factorized_projection(U_sparse, R, V, batch_size = 1000, frame_upper_bou
     final_prod = R.T.dot(UTX) 
     return final_prod
 
+
+def build_mat(g, T, device):
+    '''
+    Builds the weighted deconvolution matrix for "deconvolving the ar-1 process with parameter "g"
+    '''
+    rows_1 = torch.arange(T, device=device)
+    rows_2 = torch.arange(T-1, device=device)
+    rows = torch.hstack([rows_1, rows_2])
+    
+    columns_1 = torch.arange(T, device=device)
+    columns_2 = torch.arange(1, T, device=device)
+    columns = torch.hstack([columns_1, columns_2])
+    
+    values_1 = torch.ones(T, device=device)
+    values_2 = torch.ones(T-1, device=device)*-g
+    values = torch.hstack([values_1, values_2])
+    
+    values[0] = 0 #Zero out the first frame since deconvolution is not meaningful here
+    deconv_mat = torch_sparse.tensor.SparseTensor(row=rows, col=columns, value=values, sparse_sizes = (T, T))
+    
+    return deconv_mat
+    
+    
+def get_factorized_projection(U_sparse, R, V, batch_size = 1000, percentile=.95, device='cpu'):
+    deconv_mat = build_mat(0.98, V.shape[1], device)
+    V = torch.Tensor(V).float().to(device)
+    original_X = torch_sparse.matmul(deconv_mat.t(), V.t()).t() #Dimensions R x T
+    
+    cumulator = torch.zeros_like(original_X, device=device)
+    
+    num_iters = math.ceil(U_sparse.shape[0]/batch_size)
+    
+    U_sparse_torch = torch_sparse.tensor.from_scipy(U_sparse).float().to(device)
+    R_torch = torch.Tensor(R).float().to(device)
+    threshold_object = torch.nn.ReLU(inplace=True)
+    for k in range(num_iters):
+        start_pixel = k*batch_size
+        end_pixel = min((k+1)*batch_size, U_sparse.shape[0])
+        
+        indices = torch.arange(start_pixel, end_pixel, device=device)
+        U_sparse_torch_selected = torch_sparse.index_select(U_sparse_torch, 0, indices)
+        UR_crop = torch_sparse.matmul(U_sparse_torch_selected, R_torch)
+        
+        URX_crop = torch.matmul(UR_crop, original_X)
+        threshold_object(URX_crop)
+        quantiles = torch.quantile(URX_crop, percentile, dim=1, keepdim=True)
+        URX_crop.subtract_(quantiles)
+        threshold_object(URX_crop)
+        
+        cumulator.add_(torch.matmul(UR_crop.t(), URX_crop))
+        
+        
+    return cumulator.cpu().numpy()
+        
+        
+        
+        
+        
 
 
     
